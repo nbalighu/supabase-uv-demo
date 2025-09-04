@@ -13,11 +13,22 @@ def get_client() -> Client:
 def main():
     supabase = get_client()
     
+    # Test connection first
+    print("=== Testing Supabase Connection ===")
+    try:
+        # Try to get table info
+        tables_response = supabase.table("sneaker_listings").select("id").limit(1).execute()
+        print(f"✅ Connection successful! Table accessible.")
+        print(f"Response status: {tables_response}")
+    except Exception as e:
+        print(f"❌ Connection failed: {str(e)}")
+        return
+    
     # Example 1: Query a common table (adjust table name as needed)
-    print("=== Querying Supabase Table ===")
+    print("\n=== Querying Supabase Table ===")
     try:
         # Try common table names - adjust based on your Supabase project
-        table_names = ["todos", "users", "posts", "products", "customers"]
+        table_names = ["sneaker_listings", "todos", "users", "posts", "products", "customers"]
         
         for table_name in table_names:
             try:
@@ -31,22 +42,43 @@ def main():
                     break  # Found data, stop trying other tables
                 else:
                     print(f"  No data found in {table_name}")
+                    # Try to get table info even if no data
+                    if table_name == "sneaker_listings":
+                        print(f"  Table exists but may have RLS policies or be empty")
+                        # Try a count query
+                        try:
+                            count_response = supabase.table(table_name).select("id", count="exact").execute()
+                            print(f"  Total records in table: {count_response.count}")
+                        except Exception as count_e:
+                            print(f"  Count query error: {str(count_e)}")
             except Exception as e:
                 print(f"  Error querying {table_name}: {str(e)}")
         
         # Example 2: More specific query with filtering
         print(f"\n=== Advanced Query Example ===")
         try:
-            # This is an example of a more complex query
-            # Adjust the table name and column names based on your actual schema
-            response = supabase.table("todos").select("id, title, completed").eq("completed", False).limit(5).execute()
+            # Query sneaker listings with specific filters
+            response = supabase.table("sneaker_listings").select("id, brand, model, size_us, condition, price_usd").eq("condition", "new").limit(5).execute()
             
             if response.data:
-                print("Incomplete todos:")
-                for todo in response.data:
-                    print(f"  - {todo.get('title', 'No title')} (ID: {todo.get('id')})")
+                print("New condition sneakers:")
+                for sneaker in response.data:
+                    print(f"  - {sneaker.get('brand', 'Unknown')} {sneaker.get('model', 'Unknown')} (Size: {sneaker.get('size_us')}, Price: ${sneaker.get('price_usd')})")
             else:
-                print("No incomplete todos found")
+                print("No new condition sneakers found")
+                
+            # Another query - show all Jordan sneakers
+            print(f"\n=== Jordan Sneakers Query ===")
+            jordan_response = supabase.table("sneaker_listings").select("id, brand, model, size_us, price_usd, tags").eq("brand", "Jordan").limit(3).execute()
+            
+            if jordan_response.data:
+                print("Jordan sneakers:")
+                for sneaker in jordan_response.data:
+                    tags = sneaker.get('tags', [])
+                    print(f"  - {sneaker.get('brand')} {sneaker.get('model')} (Size: {sneaker.get('size_us')}, Price: ${sneaker.get('price_usd')}, Tags: {tags})")
+            else:
+                print("No Jordan sneakers found")
+                
         except Exception as e:
             print(f"Advanced query error: {str(e)}")
             
